@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 from struct import Struct
-from typing import IO, Self
+from typing import BinaryIO, Self
 
 from storage.engine import StorageEngine
-
-BytesIO = IO[bytes]
 
 
 class NonExistentKeyError(Exception):
@@ -19,7 +17,7 @@ class StructFormatter:
         return Struct(self.format.format(*args, **kwargs))
 
 
-def unpack_from_stream(struct: Struct, stream: BytesIO, /) -> tuple | None:
+def unpack_from_stream(struct: Struct, stream: BinaryIO, /) -> tuple | None:
     raw = stream.read(struct.size)
 
     if len(raw) < struct.size:
@@ -39,7 +37,7 @@ class AppendOnlyLogHeader:
     value_size: int
     is_active: bool = True
 
-    def to_stream(self, stream: BytesIO, /) -> int:
+    def to_stream(self, stream: BinaryIO, /) -> int:
         count = stream.write(self.Metadata.IS_ACTIVE.pack(self.is_active))
         count += stream.write(self.Metadata.KEY_SIZE.pack(self.key_size))
         count += stream.write(self.Metadata.VALUE_SIZE.pack(self.value_size))
@@ -47,7 +45,7 @@ class AppendOnlyLogHeader:
         return count
 
     @classmethod
-    def from_stream(cls, stream: BytesIO, /) -> Self | None:
+    def from_stream(cls, stream: BinaryIO, /) -> Self | None:
         # WARNING: note the extended unpacking
 
         is_active_raw = unpack_from_stream(cls.Metadata.IS_ACTIVE, stream)
@@ -87,7 +85,7 @@ class AppendOnlyLogPayload:
     key: bytes
     value: bytes
 
-    def to_stream(self, stream: BytesIO, /) -> int:
+    def to_stream(self, stream: BinaryIO, /) -> int:
         key_meta = self.Metadata.KEY.create_struct(key_size=len(self.key))
         value_meta = self.Metadata.VALUE.create_struct(value_size=len(self.value))
 
@@ -97,7 +95,7 @@ class AppendOnlyLogPayload:
         return count
 
     @classmethod
-    def from_stream(cls, stream: BytesIO, /, *, key_size: int, value_size: int) -> Self | None:
+    def from_stream(cls, stream: BinaryIO, /, *, key_size: int, value_size: int) -> Self | None:
         # WARNING: note the extended unpacking
 
         key_meta = cls.Metadata.KEY.create_struct(key_size=key_size)
@@ -127,14 +125,14 @@ class AppendOnlyLogRecord:
     header: AppendOnlyLogHeader
     payload: AppendOnlyLogPayload
 
-    def to_stream(self, stream: BytesIO, /) -> int:
+    def to_stream(self, stream: BinaryIO, /) -> int:
         count = self.header.to_stream(stream)
         count += self.payload.to_stream(stream)
 
         return count
 
     @classmethod
-    def from_stream(cls, stream: BytesIO, /) -> Self | None:
+    def from_stream(cls, stream: BinaryIO, /) -> Self | None:
         header = AppendOnlyLogHeader.from_stream(stream)
 
         if header is None:
