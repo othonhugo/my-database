@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from struct import Struct
-from typing import BinaryIO, Self
+from typing import Any, BinaryIO, Self
 
-from storage.engine import StorageEngine
+from .engine import StorageEngine
 
 
 class NonExistentKeyError(Exception):
@@ -10,14 +10,14 @@ class NonExistentKeyError(Exception):
 
 
 class StructFormatter:
-    def __init__(self, format: str) -> None:
-        self.format = format
+    def __init__(self, fmt: str) -> None:
+        self.format = fmt
 
     def create_struct(self, *args: object, **kwargs: object) -> Struct:
         return Struct(self.format.format(*args, **kwargs))
 
 
-def unpack_from_stream(struct: Struct, stream: BinaryIO, /) -> tuple | None:
+def unpack_from_stream(struct: Struct, stream: BinaryIO, /) -> tuple[Any, ...] | None:
     raw = stream.read(struct.size)
 
     if len(raw) < struct.size:
@@ -28,6 +28,7 @@ def unpack_from_stream(struct: Struct, stream: BinaryIO, /) -> tuple | None:
 
 @dataclass
 class AppendOnlyLogHeader:
+    @dataclass(frozen=True)
     class Metadata:
         IS_ACTIVE = Struct("?")
         KEY_SIZE = Struct("Q")
@@ -46,38 +47,33 @@ class AppendOnlyLogHeader:
 
     @classmethod
     def from_stream(cls, stream: BinaryIO, /) -> Self | None:
-        # WARNING: note the extended unpacking
-
         is_active_raw = unpack_from_stream(cls.Metadata.IS_ACTIVE, stream)
 
         if is_active_raw is None:
             return None
 
-        is_active, = is_active_raw
+        (is_active,) = is_active_raw
 
         key_size_raw = unpack_from_stream(cls.Metadata.KEY_SIZE, stream)
 
         if key_size_raw is None:
             return None
 
-        key_size, = key_size_raw
+        (key_size,) = key_size_raw
 
         value_size_raw = unpack_from_stream(cls.Metadata.VALUE_SIZE, stream)
 
         if value_size_raw is None:
             return None
 
-        value_size, = value_size_raw
+        (value_size,) = value_size_raw
 
-        return cls(
-            is_active=is_active,
-            key_size=key_size,
-            value_size=value_size
-        )
+        return cls(is_active=is_active, key_size=key_size, value_size=value_size)
 
 
 @dataclass
 class AppendOnlyLogPayload:
+    @dataclass(frozen=True)
     class Metadata:
         KEY = StructFormatter("{key_size}s")
         VALUE = StructFormatter("{value_size}s")
@@ -96,15 +92,13 @@ class AppendOnlyLogPayload:
 
     @classmethod
     def from_stream(cls, stream: BinaryIO, /, *, key_size: int, value_size: int) -> Self | None:
-        # WARNING: note the extended unpacking
-
         key_meta = cls.Metadata.KEY.create_struct(key_size=key_size)
         key_raw = unpack_from_stream(key_meta, stream)
 
         if key_raw is None:
             return None
 
-        key, = key_raw
+        (key,) = key_raw
 
         value_meta = cls.Metadata.VALUE.create_struct(value_size=value_size)
         value_raw = unpack_from_stream(value_meta, stream)
@@ -112,12 +106,9 @@ class AppendOnlyLogPayload:
         if value_raw is None:
             return None
 
-        value, = value_raw
+        (value,) = value_raw
 
-        return cls(
-            key=key,
-            value=value
-        )
+        return cls(key=key, value=value)
 
 
 @dataclass
@@ -139,15 +130,13 @@ class AppendOnlyLogRecord:
             return None
 
         payload = AppendOnlyLogPayload.from_stream(
-            stream, key_size=header.key_size, value_size=header.value_size)
+            stream, key_size=header.key_size, value_size=header.value_size
+        )
 
         if payload is None:
             return None
 
-        return cls(
-            header=header,
-            payload=payload
-        )
+        return cls(header=header, payload=payload)
 
 
 class AppendOnlyLogStorage(StorageEngine):
@@ -155,17 +144,9 @@ class AppendOnlyLogStorage(StorageEngine):
         self.filepath = filepath
 
     def set(self, key: bytes, value: bytes, /) -> None:
-        header = AppendOnlyLogHeader(
-            key_size=len(key), value_size=len(value)
-        )
-
-        payload = AppendOnlyLogPayload(
-            key=key, value=value
-        )
-
-        record = AppendOnlyLogRecord(
-            header=header, payload=payload
-        )
+        header = AppendOnlyLogHeader(key_size=len(key), value_size=len(value))
+        payload = AppendOnlyLogPayload(key=key, value=value)
+        record = AppendOnlyLogRecord(header=header, payload=payload)
 
         with open(self.filepath, "ab") as f:
             record.to_stream(f)

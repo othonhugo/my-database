@@ -16,5 +16,64 @@ Repository = "https://github.com/sourceunion/my-database.git"
 Issues = "https://github.com/sourceunion/my-database/issues"
 
 [project.optional-dependencies]
-lint = ["flake8"]
-dev = ["mypy"]
+dev = [
+    "pylint",
+    "mypy",
+    "black",
+    "isort"
+]
+
+[tool.pylint]
+init-hook = "import sys; sys.path.append('src')"
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods"
+]
+ignore = [
+    "tests",
+    ".venv",
+    "build",
+    "dist",
+    "docs"
+]
+recursive = true
+
+[tool.mypy]
+python_version = "3.11"
+pretty = true
+show_error_codes = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+ignore_missing_imports = true
+namespace_packages = true
+
+mypy_path = "src"
+exclude = '^(\.venv|venv|build|dist|docs|tests)/'
+
+# Strictness options (explicitly included)
+strict = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_calls = true
+disallow_any_unimported = true
+disallow_any_expr = false
+disallow_any_decorated = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.pyi?$'
+exclude = '/(\.venv|build|dist| migrations|__pycache__)/'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["mydb"]
+known_third_party = []
+skip = ["migrations", ".venv"]
