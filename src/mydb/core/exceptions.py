@@ -1,0 +1,2 @@
+class MyDBError(Exception):
+    pass
