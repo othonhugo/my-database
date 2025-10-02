@@ -2,11 +2,42 @@ from dataclasses import dataclass
 from struct import Struct
 from typing import Any, BinaryIO, Self
 
-from .engine import StorageEngine
+from core import MyDBError
+from storage.engine import StorageEngine
 
 
-class NonExistentKeyError(Exception):
+class LogStorageError(MyDBError):
     pass
+
+
+class LogKeyNotFoundError(LogStorageError):
+    def __init__(self, *, key: bytes):
+        self.key = key
+
+        super().__init__(f"Key not found: {key!r}")
+
+
+class LogCorruptedError(LogStorageError):
+    def __init__(self, *, offset: int, cause: Exception | None = None):
+        self.offset = offset
+        self.cause = cause
+
+        message = f"Log corrupted at offset {offset}"
+
+        if cause:
+            message += f": {cause}"
+
+        super().__init__(message)
+
+
+class LogInternalError(LogStorageError):
+    def __init__(self, *, description: str | None = None):
+        message = "Internal error occurred in log storage system."
+
+        if description:
+            message += f": {description}"
+
+        super().__init__(message)
 
 
 class StructFormatter:
