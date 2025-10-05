@@ -11,5 +11,5 @@ class StorageEngine(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def pop(self, key: bytes, /) -> bytes:
+    def delete(self, key: bytes, /) -> None:
         raise NotImplementedError
