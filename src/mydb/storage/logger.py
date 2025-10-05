@@ -115,7 +115,7 @@ class AppendOnlyLogRecord:
 
             payload = AppendOnlyLogPayload(key=key_bytes, value=value_bytes)
 
-        return cls(header=header, payload=payload)
+            return cls(header=header, payload=payload)
         except StructError as e:
             raise LogCorruptedError(offset=offset, cause=e) from e
 
@@ -124,33 +124,46 @@ class AppendOnlyLogStorage(StorageEngine):
     def __init__(self, filepath: str) -> None:
         self.filepath = filepath
 
+    def get(self, key: bytes, /) -> bytes:
+        _, value = self._locate(key)
+
+        return value
+
     def set(self, key: bytes, value: bytes, /) -> None:
-        header = AppendOnlyLogHeader(key_size=len(key), value_size=len(value))
+        self._append_record(AppendOnlyLogOperation.SET, key, value)
+
+    def delete(self, key: bytes, /) -> None:
+        self._append_record(AppendOnlyLogOperation.DELETE, key, b"")
+
+    def _append_record(self, operation: AppendOnlyLogOperation, key: bytes, value: bytes) -> None:
+        header = AppendOnlyLogHeader(operation=operation, key_size=len(key), value_size=len(value))
         payload = AppendOnlyLogPayload(key=key, value=value)
         record = AppendOnlyLogRecord(header=header, payload=payload)
 
         with open(self.filepath, "ab") as f:
             record.to_stream(f)
 
-    def get(self, key: bytes, /) -> bytes:
+    def _locate(self, key: bytes, /) -> tuple[int, bytes]:
+        latest_value = None
+        latest_offset = -1
+
         with open(self.filepath, "rb") as f:
             while True:
-                header = AppendOnlyLogHeader.from_stream(f)
+                current_offset = f.tell()
 
-                if header is None:
+                record = AppendOnlyLogRecord.from_stream(f)
+
+                if record is None:
                     break
 
-                payload = AppendOnlyLogPayload.from_stream(
-                    f, key_size=header.key_size, value_size=header.value_size
-                )
+                if record.payload.key == key:
+                    if record.header.operation is AppendOnlyLogOperation.DELETE:
+                        latest_value = None
+                    else:
+                        latest_value = record.payload.value
+                        latest_offset = current_offset
 
-                if payload is None:
-                    break
+        if latest_value is not None:
+            return latest_offset, latest_value
 
-                if payload.key == key:
-                    return payload.value
-
-        raise NonExistentKeyError(f"Key does not exist: {key!r}")
-
-    def pop(self, key: bytes, /) -> bytes:
-        raise NotImplementedError
+        raise LogKeyNotFoundError(key=key)
