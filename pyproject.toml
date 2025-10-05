@@ -2,8 +2,8 @@
 name = "my-database"
 version = "2025.9.0"
 description = "Sistema de banco de dados simplificado, feito do zero para fins educativos."
-authors = [{name = "github.com/sourceunion"}]
-license = {text = "MIT"}
+authors = [{ name = "github.com/sourceunion" }]
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
@@ -13,7 +13,7 @@ dev = [
     "pylint (>=3.3.8,<4.0.0)",
     "mypy (>=1.18.2,<2.0.0)",
     "black (>=25.9.0,<26.0.0)",
-    "isort (>=6.1.0,<7.0.0)"
+    "isort (>=6.1.0,<7.0.0)",
 ]
 
 [build-system]
@@ -21,33 +21,24 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-packages = [
-    {include = "mydb", from="src"}
-]
+packages = [{ include = "mydb", from = "src" }]
 
 [tool.pylint.main]
 source-roots = "src/*"
+ignore-patterns = ["\\.*_test.py", "test_.*\\.py", "conftest\\.py"]
 
 [tool.pylint]
+recursive = true
 disable = [
     "missing-module-docstring",
     "missing-class-docstring",
     "missing-function-docstring",
-    "too-few-public-methods"
+    "too-few-public-methods",
 ]
-ignore = [
-    "tests",
-    ".venv",
-    "build",
-    "dist",
-    "docs"
-]
-recursive = true
 
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
-exclude = '^(\.venv|venv|build|dist|docs|tests)/'
 
 pretty = true
 strict = true
@@ -71,12 +62,7 @@ warn_unused_ignores = true
 [tool.black]
 line-length = 100
 target-version = ["py311"]
-include = '\.pyi?$'
-exclude = '/(\.venv|build|dist| migrations|__pycache__)/'
 
 [tool.isort]
 profile = "black"
 line_length = 100
-known_first_party = ["mydb"]
-known_third_party = []
-skip = ["migrations", ".venv"]
