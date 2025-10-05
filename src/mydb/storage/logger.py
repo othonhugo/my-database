@@ -1,16 +1,27 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from enum import IntEnum
 from struct import Struct
-from typing import Any, BinaryIO, Self
+from struct import error as StructError
+from typing import BinaryIO, Self
 
 from core import MyDBError
 from storage.engine import StorageEngine
 
 
+class AppendOnlyLogOperation(IntEnum):
+    SET = 0
+    DELETE = 1
+
+
 class LogStorageError(MyDBError):
-    pass
+    """Base exception for log storage errors."""
 
 
 class LogKeyNotFoundError(LogStorageError):
+    """Raised when a key is not found in the log."""
+
     def __init__(self, *, key: bytes):
         self.key = key
 
@@ -18,7 +29,9 @@ class LogKeyNotFoundError(LogStorageError):
 
 
 class LogCorruptedError(LogStorageError):
-    def __init__(self, *, offset: int, cause: Exception | None = None):
+    """Raised when the log file appears to be corrupted."""
+
+    def __init__(self, *, offset: int, cause: str | Exception | None = None):
         self.offset = offset
         self.cause = cause
 
@@ -30,144 +43,81 @@ class LogCorruptedError(LogStorageError):
         super().__init__(message)
 
 
-class LogInternalError(LogStorageError):
-    def __init__(self, *, description: str | None = None):
-        message = "Internal error occurred in log storage system."
-
-        if description:
-            message += f": {description}"
-
-        super().__init__(message)
-
-
-class StructFormatter:
-    def __init__(self, fmt: str) -> None:
-        self.format = fmt
-
-    def create_struct(self, *args: object, **kwargs: object) -> Struct:
-        return Struct(self.format.format(*args, **kwargs))
-
-
-def unpack_from_stream(struct: Struct, stream: BinaryIO, /) -> tuple[Any, ...] | None:
-    raw = stream.read(struct.size)
-
-    if len(raw) < struct.size:
-        return None
-
-    return struct.unpack(raw)
-
-
-@dataclass
+@dataclass(frozen=True)
 class AppendOnlyLogHeader:
-    @dataclass(frozen=True)
-    class Metadata:
-        IS_ACTIVE = Struct("?")
-        KEY_SIZE = Struct("Q")
-        VALUE_SIZE = Struct("Q")
+    STRUCT = Struct("<BQQ")
 
+    operation: AppendOnlyLogOperation
     key_size: int
     value_size: int
-    is_active: bool = True
 
-    def to_stream(self, stream: BinaryIO, /) -> int:
-        count = stream.write(self.Metadata.IS_ACTIVE.pack(self.is_active))
-        count += stream.write(self.Metadata.KEY_SIZE.pack(self.key_size))
-        count += stream.write(self.Metadata.VALUE_SIZE.pack(self.value_size))
+    @property
+    def payload_size(self) -> int:
+        return self.key_size + self.value_size
 
-        return count
+    @property
+    def record_size(self) -> int:
+        return self.STRUCT.size + self.payload_size
+
+    def to_bytes(self) -> bytes:
+        return self.STRUCT.pack(self.operation, self.key_size, self.value_size)
 
     @classmethod
-    def from_stream(cls, stream: BinaryIO, /) -> Self | None:
-        is_active_raw = unpack_from_stream(cls.Metadata.IS_ACTIVE, stream)
+    def from_bytes(cls, data: bytes) -> Self:
+        op_value, key_size, value_size = cls.STRUCT.unpack(data)
 
-        if is_active_raw is None:
-            return None
+        operation = AppendOnlyLogOperation(op_value)
 
-        (is_active,) = is_active_raw
-
-        key_size_raw = unpack_from_stream(cls.Metadata.KEY_SIZE, stream)
-
-        if key_size_raw is None:
-            return None
-
-        (key_size,) = key_size_raw
-
-        value_size_raw = unpack_from_stream(cls.Metadata.VALUE_SIZE, stream)
-
-        if value_size_raw is None:
-            return None
-
-        (value_size,) = value_size_raw
-
-        return cls(is_active=is_active, key_size=key_size, value_size=value_size)
+        return cls(operation=operation, key_size=key_size, value_size=value_size)
 
 
-@dataclass
+@dataclass(frozen=True)
 class AppendOnlyLogPayload:
-    @dataclass(frozen=True)
-    class Metadata:
-        KEY = StructFormatter("{key_size}s")
-        VALUE = StructFormatter("{value_size}s")
-
     key: bytes
     value: bytes
 
-    def to_stream(self, stream: BinaryIO, /) -> int:
-        key_meta = self.Metadata.KEY.create_struct(key_size=len(self.key))
-        value_meta = self.Metadata.VALUE.create_struct(value_size=len(self.value))
-
-        count = stream.write(key_meta.pack(self.key))
-        count += stream.write(value_meta.pack(self.value))
-
-        return count
-
-    @classmethod
-    def from_stream(cls, stream: BinaryIO, /, *, key_size: int, value_size: int) -> Self | None:
-        key_meta = cls.Metadata.KEY.create_struct(key_size=key_size)
-        key_raw = unpack_from_stream(key_meta, stream)
-
-        if key_raw is None:
-            return None
-
-        (key,) = key_raw
-
-        value_meta = cls.Metadata.VALUE.create_struct(value_size=value_size)
-        value_raw = unpack_from_stream(value_meta, stream)
-
-        if value_raw is None:
-            return None
-
-        (value,) = value_raw
-
-        return cls(key=key, value=value)
+    def to_bytes(self) -> bytes:
+        return self.key + self.value
 
 
-@dataclass
+@dataclass(frozen=True)
 class AppendOnlyLogRecord:
     header: AppendOnlyLogHeader
     payload: AppendOnlyLogPayload
 
     def to_stream(self, stream: BinaryIO, /) -> int:
-        count = self.header.to_stream(stream)
-        count += self.payload.to_stream(stream)
+        count = stream.write(self.header.to_bytes())
+        count += stream.write(self.payload.to_bytes())
 
         return count
 
     @classmethod
     def from_stream(cls, stream: BinaryIO, /) -> Self | None:
-        header = AppendOnlyLogHeader.from_stream(stream)
+        offset = stream.tell()
 
-        if header is None:
+        if not (header_bytes := stream.read(AppendOnlyLogHeader.STRUCT.size)):
             return None
 
-        payload = AppendOnlyLogPayload.from_stream(
-            stream, key_size=header.key_size, value_size=header.value_size
-        )
+        if len(header_bytes) < AppendOnlyLogHeader.STRUCT.size:
+            raise LogCorruptedError(offset=offset, cause="Truncated record header.")
 
-        if payload is None:
-            return None
+        try:
+            header = AppendOnlyLogHeader.from_bytes(header_bytes)
+
+            payload_bytes = stream.read(header.payload_size)
+
+            if len(payload_bytes) != header.payload_size:
+                raise LogCorruptedError(offset=offset, cause="Truncated record payload.")
+
+            payload_struct = Struct(f"{header.key_size}s{header.value_size}s")
+
+            key_bytes, value_bytes = payload_struct.unpack(payload_bytes)
+
+            payload = AppendOnlyLogPayload(key=key_bytes, value=value_bytes)
 
         return cls(header=header, payload=payload)
+        except StructError as e:
+            raise LogCorruptedError(offset=offset, cause=e) from e
 
 
 class AppendOnlyLogStorage(StorageEngine):
