@@ -54,19 +54,12 @@ disable = [
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
-exclude = '^(\.venv|venv|build|dist|docs|tests)/'
+exclude = ["tests"]
 pretty = true
 strict = true
 disallow_any_expr = false
 disallow_any_unimported = false
 disallow_subclassing_any = false
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_incomplete_defs = false
-disallow_untyped_defs = false
-check_untyped_defs = false
-disallow_untyped_calls = false
 
 [tool.black]
 line-length = 150
