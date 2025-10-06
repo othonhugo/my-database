@@ -18,6 +18,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install mypy
+    - name: Install current module
+      run: |
+        pip install -e .
     - name: Analysing the code with mypy
       run: |
         mypy $(git ls-files '*.py')
