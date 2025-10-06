@@ -14,20 +14,21 @@ dev = [
     "mypy (>=1.18.2,<2.0.0)",
     "black (>=25.9.0,<26.0.0)",
     "isort (>=6.1.0,<7.0.0)",
+    "pytest (>=8.4.2)"
 ]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.setuptools]
+package-dir = { "" = "src" }
+
 [tool.poetry]
 packages = [{ include = "mydb", from = "src" }]
 
 [tool.pylint.main]
-source-roots = "src/*"
-ignore-patterns = ["\\.*_test.py", "test_.*\\.py", "conftest\\.py"]
-
-[tool.pylint]
+source-roots = "src/"
 recursive = true
 disable = [
     "missing-module-docstring",
@@ -36,33 +37,51 @@ disable = [
     "too-few-public-methods",
 ]
 
+[tool.pylint.'tests/']
+disable = [
+    "missing-function-docstring",
+    "protected-access",
+    "redefined-outer-name",
+    "unused-argument",
+]
+
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
-
+exclude = '^(\.venv|venv|build|dist|docs|tests)/'
 pretty = true
 strict = true
-
-check_untyped_defs = true
-disallow_any_decorated = true
 disallow_any_expr = false
-disallow_any_generics = true
 disallow_any_unimported = false
-disallow_incomplete_defs = true
 disallow_subclassing_any = false
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-namespace_packages = true
-show_error_codes = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+check_untyped_defs = false
+disallow_untyped_calls = false
 
 [tool.black]
-line-length = 100
+line-length = 150
 target-version = ["py311"]
+exclude = '''
+/(
+    \.git
+| \.venv
+| build
+| dist
+| migrations
+| .venv
+)/
+'''
 
 [tool.isort]
 profile = "black"
-line_length = 100
+line_length = 79
+
+[tool.pytest.ini_options]
+addopts = "-raqsv --strict-markers --tb=no"
+pythonpath = ["src"]
+testpaths = ["tests"]
+norecursedirs = [".vscode", "__pycache__"]
