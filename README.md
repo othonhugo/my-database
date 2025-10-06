@@ -31,10 +31,10 @@ Para resolver o problema da leitura lenta, construiremos um índice em memória.
 
 Dividimos o desenvolvimento em fases claras e alcançáveis.
 
--   [ ] **Fase 1: Motor de Armazenamento**
-    -   [ ] Implementar a capacidade de anexar operações `SET` a um arquivo `database.log`.
-    -   [ ] Implementar a leitura `GET` por meio de escaneamento completo do arquivo.
-    -   [ ] Implementar a exclusão `DELETE` (anexando um marcador de exclusão).
+-   [x] **Fase 1: Motor de Armazenamento**
+    -   [x] Implementar a capacidade de anexar operações `SET` a um arquivo `database.log`.
+    -   [x] Implementar a leitura `GET` por meio de escaneamento completo do arquivo.
+    -   [x] Implementar a exclusão `DELETE` (anexando um marcador de exclusão).
 
 -   [ ] **Fase 2: Indexação para Leituras Rápidas**
     -   [ ] Construir o índice Hash em memória durante a inicialização.
