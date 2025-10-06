@@ -2,8 +2,8 @@
 name = "my-database"
 version = "2025.9.0"
 description = "Sistema de banco de dados simplificado, feito do zero para fins educativos."
-authors = [{name = "github.com/sourceunion"}]
-license = {text = "MIT"}
+authors = [{ name = "github.com/sourceunion" }]
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
@@ -13,70 +13,61 @@ dev = [
     "pylint (>=3.3.8,<4.0.0)",
     "mypy (>=1.18.2,<2.0.0)",
     "black (>=25.9.0,<26.0.0)",
-    "isort (>=6.1.0,<7.0.0)"
+    "isort (>=6.1.0,<7.0.0)",
+    "pytest (>=8.4.2)",
 ]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.setuptools]
+package-dir = { "" = "src" }
+
 [tool.poetry]
-packages = [
-    {include = "mydb", from="src"}
-]
+packages = [{ include = "mydb", from = "src" }]
 
 [tool.pylint.main]
-source-roots = "src/*"
-
-[tool.pylint]
+source-roots = "src/"
+recursive = true
 disable = [
     "missing-module-docstring",
     "missing-class-docstring",
     "missing-function-docstring",
-    "too-few-public-methods"
+    "too-few-public-methods",
 ]
-ignore = [
-    "tests",
-    ".venv",
-    "build",
-    "dist",
-    "docs"
-]
-recursive = true
+ignore-paths = [".venv/", "build/", "tests/"]
 
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
-exclude = '^(\.venv|venv|build|dist|docs|tests)/'
-
+exclude = ["tests"]
 pretty = true
 strict = true
-
-check_untyped_defs = true
-disallow_any_decorated = true
 disallow_any_expr = false
-disallow_any_generics = true
 disallow_any_unimported = false
-disallow_incomplete_defs = true
 disallow_subclassing_any = false
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-namespace_packages = true
-show_error_codes = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unused_ignores = true
 
 [tool.black]
-line-length = 100
+line-length = 150
 target-version = ["py311"]
-include = '\.pyi?$'
-exclude = '/(\.venv|build|dist| migrations|__pycache__)/'
+exclude = '''
+/(
+    \.git
+| \.venv
+| build
+| dist
+| migrations
+| .venv
+)/
+'''
 
 [tool.isort]
 profile = "black"
-line_length = 100
-known_first_party = ["mydb"]
-known_third_party = []
-skip = ["migrations", ".venv"]
+line_length = 79
+
+[tool.pytest.ini_options]
+addopts = "-raqsv --strict-markers --tb=no"
+pythonpath = ["src"]
+testpaths = ["tests"]
+norecursedirs = [".vscode", "__pycache__"]

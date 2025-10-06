@@ -1,4 +1,4 @@
-name: Mypy
+name: pytest
 
 on: [push, pull_request]
 
@@ -11,16 +11,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install mypy
+        pip install pytest
     - name: Install local package in editable mode
       run: |
         python -m pip install -e .
-    - name: Analysing the code with mypy
+    - name: Testing the code with pytest
       run: |
-        mypy .
+        pytest

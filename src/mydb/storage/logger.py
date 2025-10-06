@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
+from pathlib import Path
 from struct import Struct
-from struct import error as StructError
 from typing import BinaryIO, Self
 
-from core import MyDBError
-from storage.engine import StorageEngine
+from mydb.core import MyDBError
+from mydb.storage.engine import StorageEngine
 
 
 class AppendOnlyLogOperation(IntEnum):
@@ -45,7 +45,7 @@ class LogCorruptedError(LogStorageError):
 
 @dataclass(frozen=True)
 class AppendOnlyLogHeader:
-    STRUCT = Struct("<BQQ")
+    STRUCT = Struct("BQQ")
 
     operation: AppendOnlyLogOperation
     key_size: int
@@ -60,13 +60,16 @@ class AppendOnlyLogHeader:
         return self.STRUCT.size + self.payload_size
 
     def to_bytes(self) -> bytes:
-        return self.STRUCT.pack(self.operation, self.key_size, self.value_size)
+        return self.STRUCT.pack(self.operation.value, self.key_size, self.value_size)
 
     @classmethod
     def from_bytes(cls, data: bytes) -> Self:
         op_value, key_size, value_size = cls.STRUCT.unpack(data)
 
-        operation = AppendOnlyLogOperation(op_value)
+        try:
+            operation = AppendOnlyLogOperation(op_value)
+        except ValueError as e:
+            raise LogStorageError(e) from e
 
         return cls(operation=operation, key_size=key_size, value_size=value_size)
 
@@ -116,16 +119,18 @@ class AppendOnlyLogRecord:
             payload = AppendOnlyLogPayload(key=key_bytes, value=value_bytes)
 
             return cls(header=header, payload=payload)
-        except StructError as e:
+        except Exception as e:
             raise LogCorruptedError(offset=offset, cause=e) from e
 
 
 class AppendOnlyLogStorage(StorageEngine):
     def __init__(self, filepath: str) -> None:
-        self.filepath = filepath
+        self.filepath = Path(filepath)
+
+        self.filepath.touch()
 
     def get(self, key: bytes, /) -> bytes:
-        _, value = self._locate(key)
+        _, value = self._resolve_latest_entry(key)
 
         return value
 
@@ -143,7 +148,7 @@ class AppendOnlyLogStorage(StorageEngine):
         with open(self.filepath, "ab") as f:
             record.to_stream(f)
 
-    def _locate(self, key: bytes, /) -> tuple[int, bytes]:
+    def _resolve_latest_entry(self, key: bytes, /) -> tuple[int, bytes]:
         latest_value = None
         latest_offset = -1
 
@@ -159,6 +164,7 @@ class AppendOnlyLogStorage(StorageEngine):
                 if record.payload.key == key:
                     if record.header.operation is AppendOnlyLogOperation.DELETE:
                         latest_value = None
+                        latest_offset = -1
                     else:
                         latest_value = record.payload.value
                         latest_offset = current_offset
