@@ -27,6 +27,7 @@ package-dir = { "" = "src" }
 [tool.poetry]
 packages = [{ include = "mydb", from = "src" }]
 
+
 [tool.pylint.main]
 source-roots = "src/"
 recursive = true
@@ -35,6 +36,11 @@ disable = [
     "missing-class-docstring",
     "missing-function-docstring",
     "too-few-public-methods",
+]
+ignore-paths = [
+    ".venv/",
+    "build/",
+    "tests/",
 ]
 
 [tool.pylint.'tests/']

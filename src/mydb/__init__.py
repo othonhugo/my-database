@@ -1,5 +1,5 @@
-from storage import AppendOnlyLogStorage
+from . import storage
 
 __all__ = [
-    "AppendOnlyLogStorage",
+    "storage",
 ]
