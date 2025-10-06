@@ -14,7 +14,7 @@ dev = [
     "mypy (>=1.18.2,<2.0.0)",
     "black (>=25.9.0,<26.0.0)",
     "isort (>=6.1.0,<7.0.0)",
-    "pytest (>=8.4.2)"
+    "pytest (>=8.4.2)",
 ]
 
 [build-system]
@@ -27,7 +27,6 @@ package-dir = { "" = "src" }
 [tool.poetry]
 packages = [{ include = "mydb", from = "src" }]
 
-
 [tool.pylint.main]
 source-roots = "src/"
 recursive = true
@@ -37,19 +36,7 @@ disable = [
     "missing-function-docstring",
     "too-few-public-methods",
 ]
-ignore-paths = [
-    ".venv/",
-    "build/",
-    "tests/",
-]
-
-[tool.pylint.'tests/']
-disable = [
-    "missing-function-docstring",
-    "protected-access",
-    "redefined-outer-name",
-    "unused-argument",
-]
+ignore-paths = [".venv/", "build/", "tests/"]
 
 [tool.mypy]
 python_version = "3.11"
