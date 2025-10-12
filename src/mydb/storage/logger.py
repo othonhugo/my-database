@@ -7,7 +7,7 @@ from struct import Struct
 from typing import BinaryIO, Self
 
 from mydb.core import MyDBError
-from mydb.storage.engine import StorageEngine
+from mydb.storage.abc import StorageEngine
 
 
 class AppendOnlyLogOperation(IntEnum):
