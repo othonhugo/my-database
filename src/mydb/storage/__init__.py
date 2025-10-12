@@ -1,4 +1,4 @@
-from .engine import StorageEngine
+from .abstract import Index, StorageEngine
 from .logger import (
     AppendOnlyLogStorage,
     LogCorruptedError,
@@ -8,6 +8,7 @@ from .logger import (
 
 __all__ = [
     "AppendOnlyLogStorage",
+    "Index",
     "LogCorruptedError",
     "LogKeyNotFoundError",
     "LogStorageError",

@@ -13,3 +13,17 @@ class StorageEngine(ABC):
     @abstractmethod
     def delete(self, key: bytes, /) -> None:
         raise NotImplementedError
+
+
+class Index(ABC):
+    @abstractmethod
+    def set(self, key: bytes, offset: int, /) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, key: bytes, /) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, key: bytes, /) -> None:
+        raise NotImplementedError
