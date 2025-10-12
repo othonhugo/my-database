@@ -1,4 +1,4 @@
-from .abstract import Index, StorageEngine
+from .abc import Index, StorageEngine
 from .index import InMemoryIndex
 from .logger import (
     AppendOnlyLogStorage,

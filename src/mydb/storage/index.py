@@ -1,5 +1,5 @@
 from mydb.core import MyDBError
-from mydb.storage.abstract import Index
+from mydb.storage.abc import Index
 
 
 class InMemoryIndexError(MyDBError):
@@ -18,6 +18,9 @@ class InMemoryIndexKeyNotFoundError(InMemoryIndexError):
 class InMemoryIndex(Index):
     def __init__(self) -> None:
         self._offset_table = dict[bytes, int]()
+
+    def has(self, key: bytes, /) -> bool:
+        return key in self._offset_table
 
     def set(self, key: bytes, offset: int, /) -> None:
         self._offset_table[key] = offset
