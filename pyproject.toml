@@ -41,7 +41,7 @@ ignore-paths = [".venv/", "build/", "tests/"]
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
-exclude = ["tests"]
+exclude = ["tests/*"]
 pretty = true
 strict = true
 disallow_any_expr = false

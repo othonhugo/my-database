@@ -149,7 +149,7 @@ def log_storage(log_filepath: str) -> AppendOnlyLogStorage:
 
 
 @pytest.mark.parametrize("key, value", BASE_SCENARIOS)
-def test_set_then_get_returns_value(log_storage: AppendOnlyLogStorage, key: bytes, value: bytes) -> None:
+def test_set_then_get_returns_value(log_storage: AppendOnlyLogStorage, key: bytes, value: bytes):
     """
     Sets a key-value pair and then immediately retrieves it.
 
@@ -168,7 +168,7 @@ def test_set_then_get_returns_value(log_storage: AppendOnlyLogStorage, key: byte
 
 
 @pytest.mark.parametrize("key, initial_value, updated_value", UPDATE_SCENARIOS)
-def test_get_returns_latest_value_for_key(log_storage: AppendOnlyLogStorage, key: bytes, initial_value: bytes, updated_value: bytes) -> None:
+def test_get_returns_latest_value_for_key(log_storage: AppendOnlyLogStorage, key: bytes, initial_value: bytes, updated_value: bytes):
     """
     Retrieves a key that has been set multiple times.
 
@@ -190,7 +190,7 @@ def test_get_returns_latest_value_for_key(log_storage: AppendOnlyLogStorage, key
 
 
 @pytest.mark.parametrize("key, value", BASE_SCENARIOS)
-def test_deleted_key_is_inaccessible(log_storage: AppendOnlyLogStorage, key: bytes, value: bytes) -> None:
+def test_deleted_key_is_inaccessible(log_storage: AppendOnlyLogStorage, key: bytes, value: bytes):
     """
     Tries to GET a key after it has been deleted.
 
@@ -213,7 +213,7 @@ def test_deleted_key_is_inaccessible(log_storage: AppendOnlyLogStorage, key: byt
 
 
 @pytest.mark.parametrize("key, initial_value, new_value", UPDATE_SCENARIOS)
-def test_set_after_delete_restores_key(log_storage: AppendOnlyLogStorage, key: bytes, initial_value: bytes, new_value: bytes) -> None:
+def test_set_after_delete_restores_key(log_storage: AppendOnlyLogStorage, key: bytes, initial_value: bytes, new_value: bytes):
     """
     Sets a new value for a key that was previously deleted.
 
@@ -234,7 +234,7 @@ def test_set_after_delete_restores_key(log_storage: AppendOnlyLogStorage, key: b
 
 
 @pytest.mark.parametrize("key, _", BASE_SCENARIOS)
-def test_delete_nonexistent_key_does_not_error(log_storage: AppendOnlyLogStorage, key: bytes, _: bytes) -> None:
+def test_delete_nonexistent_key_does_not_error(log_storage: AppendOnlyLogStorage, key: bytes, _: bytes):
     """
     Calls DELETE on a key that has never been set.
 
@@ -256,7 +256,7 @@ def test_delete_nonexistent_key_does_not_error(log_storage: AppendOnlyLogStorage
 
 
 @pytest.mark.parametrize("key, value", BASE_SCENARIOS)
-def test_data_persists_across_instances(log_filepath: str, key: bytes, value: bytes) -> None:
+def test_data_persists_across_instances(log_filepath: str, key: bytes, value: bytes):
     """
     Writes data with one storage instance, then reads it with a new, separate instance.
 
@@ -277,7 +277,7 @@ def test_data_persists_across_instances(log_filepath: str, key: bytes, value: by
 
 
 @pytest.mark.parametrize("key, value", BASE_SCENARIOS)
-def test_get_unknown_key_raises_error(log_storage: AppendOnlyLogStorage, key: bytes, value: bytes) -> None:
+def test_get_unknown_key_raises_error(log_storage: AppendOnlyLogStorage, key: bytes, value: bytes):
     """
     Tries to GET a key that was never written to the log.
 
@@ -300,7 +300,7 @@ def test_get_unknown_key_raises_error(log_storage: AppendOnlyLogStorage, key: by
 
 
 @pytest.mark.parametrize("unknown_key, _", BASE_SCENARIOS)
-def test_get_from_empty_log_raises_error(log_storage: AppendOnlyLogStorage, unknown_key: bytes, _: bytes) -> None:
+def test_get_from_empty_log_raises_error(log_storage: AppendOnlyLogStorage, unknown_key: bytes, _: bytes):
     """
     Tries to GET a key from an empty (zero-byte) log file.
 
@@ -318,7 +318,7 @@ def test_get_from_empty_log_raises_error(log_storage: AppendOnlyLogStorage, unkn
     assert exc_info.value.key == unknown_key
 
 
-def test_get_from_missing_file_raises_error(log_storage: AppendOnlyLogStorage) -> None:
+def test_get_from_missing_file_raises_error(log_storage: AppendOnlyLogStorage):
     """
     Attempts to GET a key when the underlying log file does not exist.
 
@@ -337,7 +337,7 @@ def test_get_from_missing_file_raises_error(log_storage: AppendOnlyLogStorage) -
         database.get(b"any_key")
 
 
-def test_truncated_header_raises_corruption_error(log_filepath: str) -> None:
+def test_truncated_header_raises_corruption_error(log_filepath: str):
     """
     Reads a log file where a record header is incomplete.
 
@@ -363,7 +363,7 @@ def test_truncated_header_raises_corruption_error(log_filepath: str) -> None:
         database.get(b"any_key")
 
 
-def test_truncated_payload_raises_corruption_error(log_filepath: str) -> None:
+def test_truncated_payload_raises_corruption_error(log_filepath: str):
     """
     Reads a log file where a record's payload is shorter than specified in its header.
 
@@ -393,7 +393,7 @@ def test_truncated_payload_raises_corruption_error(log_filepath: str) -> None:
         database.get(key)
 
 
-def test_garbage_data_raises_corruption_error(log_filepath: str) -> None:
+def test_garbage_data_raises_corruption_error(log_filepath: str):
     """
     Reads a log file containing random, invalid binary data instead of structured records.
 
@@ -413,7 +413,7 @@ def test_garbage_data_raises_corruption_error(log_filepath: str) -> None:
         database.get(b"any_key")
 
 
-def test_multiple_keys_store_and_retrieve_correctly(log_storage: AppendOnlyLogStorage) -> None:
+def test_multiple_keys_store_and_retrieve_correctly(log_storage: AppendOnlyLogStorage):
     """
     Writes multiple distinct key-value pairs and verifies each one can be retrieved.
 
@@ -432,7 +432,7 @@ def test_multiple_keys_store_and_retrieve_correctly(log_storage: AppendOnlyLogSt
         assert database.get(key) == expected_value
 
 
-def test_key_operations_do_not_affect_others(log_storage: AppendOnlyLogStorage) -> None:
+def test_key_operations_do_not_affect_others(log_storage: AppendOnlyLogStorage):
     """
     Performs operations (SET, DELETE) on one key and then verifies the value of another.
 
@@ -453,7 +453,7 @@ def test_key_operations_do_not_affect_others(log_storage: AppendOnlyLogStorage) 
     assert database.get(b"key-2") == b"value-2"
 
 
-def test_directory_as_filepath_raises_error(tmp_path: Path) -> None:
+def test_directory_as_filepath_raises_error(tmp_path: Path):
     """
     Initializes the storage engine with a path that points to a directory.
 
@@ -469,7 +469,7 @@ def test_directory_as_filepath_raises_error(tmp_path: Path) -> None:
         database.set(b"some_key", b"some_value")
 
 
-def test_interleaved_operations_maintain_key_integrity(log_storage: AppendOnlyLogStorage) -> None:
+def test_interleaved_operations_maintain_key_integrity(log_storage: AppendOnlyLogStorage):
     """
     Performs a sequence of mixed SET and DELETE operations on multiple keys.
 
@@ -494,7 +494,7 @@ def test_interleaved_operations_maintain_key_integrity(log_storage: AppendOnlyLo
     assert database.get(b"k3") == b"delta"
 
 
-def test_partial_write_does_not_corrupt_existing_data(log_filepath: str) -> None:
+def test_partial_write_does_not_corrupt_existing_data(log_filepath: str):
     """
     Simulates a crash by writing a valid log followed by a partial, incomplete record.
 
