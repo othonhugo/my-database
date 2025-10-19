@@ -2,14 +2,6 @@ import pytest
 
 from mydb.storage.index import InMemoryIndex, InMemoryIndexKeyNotFoundError
 
-
-@pytest.fixture
-def in_memory_index() -> InMemoryIndex:
-    """Returns a new, empty InMemoryIndex instance for each test."""
-
-    return InMemoryIndex()
-
-
 EDGE_SCENARIOS = [
     # fmt: off
 
@@ -194,6 +186,14 @@ UPDATE_SCENARIOS = [
         id=f"{p.id}-update"   # Append '-update' to the original ID for clarity
     ) for p in BASE_SCENARIOS),
 ]
+
+
+@pytest.fixture
+def in_memory_index() -> InMemoryIndex:
+    """Returns a new, empty InMemoryIndex instance for each test."""
+
+    return InMemoryIndex()
+
 
 # Core Functionality and Lifecycle Tests
 
