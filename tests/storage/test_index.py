@@ -279,31 +279,55 @@ def test_deleted_key_is_no_longer_accessible(in_memory_index: InMemoryIndex, key
     assert exc_info.value.key == key
 
 
-# Error Handling and Behavior for Non-existent Keys
-
-
-def test_get_nonexistent_key_raises_error(in_memory_index: InMemoryIndex):
+@pytest.mark.parametrize("key, _", BASE_SCENARIOS)
+def test_get_nonexistent_key_raises_error(in_memory_index: InMemoryIndex, key: bytes, _: int):
     """
     Attempts to `get()` a key that has never been set.
 
     Ensures that accessing a non-existent key raises the specific `InMemoryIndexKeyNotFoundError`.
     """
 
+    # ARRANGE
+    index = in_memory_index
 
-def test_has_returns_false_for_nonexistent_key(in_memory_index: InMemoryIndex):
+    # ACT & ASSERT
+    with pytest.raises(InMemoryIndexKeyNotFoundError) as exc_info:
+        index.get(key)
+
+    assert exc_info.value.key == key
+
+
+@pytest.mark.parametrize("key, _", BASE_SCENARIOS)
+def test_has_returns_false_for_nonexistent_key(in_memory_index: InMemoryIndex, key: bytes, _: int):
     """
     Calls the `has()` method for a key known to not be in the index.
 
     Confirms that the presence check correctly returns False for a non-existent key.
     """
 
+    # ARRANGE
+    index = in_memory_index
 
-def test_delete_nonexistent_key_is_silent_and_idempotent(in_memory_index: InMemoryIndex):
+    # ACT & ASSERT
+    assert index.has(key) is False
+
+
+@pytest.mark.parametrize("key, _", BASE_SCENARIOS)
+def test_delete_nonexistent_key_is_silent_and_idempotent(in_memory_index: InMemoryIndex, key: bytes, _: int):
     """
     Calls `delete()` on a key that is not present in the index.
 
     Verifies that this operation is a safe no-op (idempotent) and does not raise an error.
     """
+
+    # ARRANGE
+    index = in_memory_index
+
+    # ACT & ASSERT
+    try:
+        index.delete(key)
+    except Exception as e:
+        pytest.fail(f"Deleting a non-existent key raised an unexpected exception: {e}")
 
 
 # Edge Case Tests using Parameterization
