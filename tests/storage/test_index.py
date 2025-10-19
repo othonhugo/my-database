@@ -330,14 +330,39 @@ def test_delete_nonexistent_key_is_silent_and_idempotent(in_memory_index: InMemo
         pytest.fail(f"Deleting a non-existent key raised an unexpected exception: {e}")
 
 
-# Edge Case Tests using Parameterization
-
-
-@pytest.mark.parametrize("key", EDGE_SCENARIOS)
-def test_lifecycle_with_edge_case_keys(in_memory_index: InMemoryIndex, key: bytes):
+@pytest.mark.parametrize("key, initial_offset, updated_offset", UPDATE_SCENARIOS)
+def test_lifecycle_with_edge_case_keys(in_memory_index: InMemoryIndex, key: bytes, initial_offset: int, updated_offset: int):
     """
     Runs the full set -> update -> delete -> get lifecycle for a given key.
 
     This test is parameterized to ensure the index handles various edge-case key formats
     (e.g., empty, binary, large) robustly across all its core operations.
     """
+
+    # ARRANGE
+    index = in_memory_index
+
+    # ACT: Set the key for the first time.
+    index.set(key, initial_offset)
+
+    # ASSERT: Verify the key now exists and points to the correct offset.
+    assert index.has(key) is True
+    assert index.get(key) == initial_offset
+
+    # ACT: Set the same key again with a new offset.
+    index.set(key, updated_offset)
+
+    # ASSERT: Verify the offset has been updated correctly (last-write-wins).
+    assert index.get(key) == updated_offset
+
+    # ACT: Delete the key.
+    index.delete(key)
+
+    # ASSERT: Verify the key is no longer present.
+    assert index.has(key) is False
+
+    # ACT & ASSERT: Verify that attempting to get the deleted key raises the correct error.
+    with pytest.raises(InMemoryIndexKeyNotFoundError) as exc_info:
+        index.get(key)
+
+    assert exc_info.value.key == key
