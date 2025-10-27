@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
 from struct import Struct
-from typing import BinaryIO, Self
+from typing import Self
+from os import SEEK_END
 
 from mydb.core import MyDBError
-from mydb.interface import Index, StorageEngine
-from mydb.storage.index import InMemoryIndexKeyNotFoundError
+from mydb.interface import Index, StorageEngine, File
+from mydb.index import InMemoryIndexKeyNotFoundError
 
 
 class AppendOnlyLogOperation(IntEnum):
@@ -98,14 +98,14 @@ class AppendOnlyLogRecord:
     header: AppendOnlyLogHeader
     payload: AppendOnlyLogPayload
 
-    def to_stream(self, stream: BinaryIO, /) -> int:
+    def to_stream(self, stream: File, /) -> int:
         count = stream.write(self.header.to_bytes())
         count += stream.write(self.payload.to_bytes())
 
         return count
 
     @classmethod
-    def from_stream(cls, stream: BinaryIO, /) -> Self | None:
+    def from_stream(cls, stream: File, /) -> Self | None:
         offset = stream.tell()
 
         if not (header_bytes := stream.read(AppendOnlyLogHeader.STRUCT.size)):
@@ -134,20 +134,13 @@ class AppendOnlyLogRecord:
 
 
 class AppendOnlyLogStorage(StorageEngine):
-    def __init__(self, filepath: str | Path, index: Index, max_size: int) -> None:
-        if max_size <= 0:
-            raise ValueError("max_size must be a positive integer.")
-
-        self._max_size = max_size
-
-        if isinstance(filepath, str):
-            filepath = Path(filepath)
-
-        self._filepath = filepath
+    def __init__(self, file: File, index: Index) -> None:
+        self._file = file
         self._index = index
 
-        self._filepath.touch()
-        self._build_index()
+        with self._file:
+            self._build_index()
+            self._file.seek(0, SEEK_END)
 
     def get(self, key: bytes, /) -> bytes:
         if not self._index.has(key):
@@ -158,7 +151,8 @@ class AppendOnlyLogStorage(StorageEngine):
         except InMemoryIndexKeyNotFoundError:
             raise LogKeyNotFoundError(key=key) from None
 
-        record = self._load_record_at(offset)
+        with self._file:
+            record = self._load_record_at(offset)
 
         if record.payload.key == key:
             return record.payload.value
@@ -168,7 +162,8 @@ class AppendOnlyLogStorage(StorageEngine):
         raise LogInvalidOffsetError(offset=offset)
 
     def set(self, key: bytes, value: bytes, /) -> None:
-        offset = self._append_record(AppendOnlyLogOperation.SET, key, value)
+        with self._file:
+            offset = self._append_record(AppendOnlyLogOperation.SET, key, value)
 
         self._index.set(key, offset)
 
@@ -176,46 +171,44 @@ class AppendOnlyLogStorage(StorageEngine):
         if not self._index.has(key):
             return
 
-        self._append_record(AppendOnlyLogOperation.DELETE, key, b"")
+        with self._file:
+            self._append_record(AppendOnlyLogOperation.DELETE, key, b"")
 
         self._index.delete(key)
 
     def _build_index(self) -> None:
-        with open(self._filepath, "rb") as f:
-            while True:
-                current_offset = f.tell()
+        while True:
+            current_offset = self._file.tell()
 
-                record = AppendOnlyLogRecord.from_stream(f)
+            record = AppendOnlyLogRecord.from_stream(self._file)
 
-                if record is None:
-                    break
+            if record is None:
+                break
 
-                record_key = record.payload.key
+            record_key = record.payload.key
 
-                match record.header.operation:
-                    case AppendOnlyLogOperation.DELETE:
-                        self._index.delete(record_key)
-                    case AppendOnlyLogOperation.SET:
-                        self._index.set(record_key, current_offset)
+            match record.header.operation:
+                case AppendOnlyLogOperation.DELETE:
+                    self._index.delete(record_key)
+                case AppendOnlyLogOperation.SET:
+                    self._index.set(record_key, current_offset)
 
     def _append_record(self, operation: AppendOnlyLogOperation, key: bytes, value: bytes) -> int:
         header = AppendOnlyLogHeader(operation=operation, key_size=len(key), value_size=len(value))
         payload = AppendOnlyLogPayload(key=key, value=value)
         record = AppendOnlyLogRecord(header=header, payload=payload)
 
-        with open(self._filepath, "ab") as f:
-            offset = f.tell()
-            record.to_stream(f)
+        offset = self._file.tell()
+        record.to_stream(self._file)
 
         return offset
 
     def _load_record_at(self, offset: int, /) -> AppendOnlyLogRecord:
-        with open(self._filepath, "rb") as f:
-            f.seek(offset)
+        self._file.seek(offset)
 
-            record = AppendOnlyLogRecord.from_stream(f)
+        record = AppendOnlyLogRecord.from_stream(self._file)
 
-            if record is None:
-                raise LogInvalidOffsetError(offset=offset)
+        if record is None:
+            raise LogInvalidOffsetError(offset=offset)
 
-            return record
+        return record
