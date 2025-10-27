@@ -1,5 +1,5 @@
 from mydb.core import MyDBError
-from mydb.storage.abc import Index
+from mydb.interface import Index
 
 
 class InMemoryIndexError(MyDBError):

@@ -7,7 +7,7 @@ from struct import Struct
 from typing import BinaryIO, Self
 
 from mydb.core import MyDBError
-from mydb.storage.abc import Index, StorageEngine
+from mydb.interface import Index, StorageEngine
 from mydb.storage.index import InMemoryIndexKeyNotFoundError
 
 
@@ -134,7 +134,12 @@ class AppendOnlyLogRecord:
 
 
 class AppendOnlyLogStorage(StorageEngine):
-    def __init__(self, filepath: str | Path, index: Index) -> None:
+    def __init__(self, filepath: str | Path, index: Index, max_size: int) -> None:
+        if max_size <= 0:
+            raise ValueError("max_size must be a positive integer.")
+
+        self._max_size = max_size
+
         if isinstance(filepath, str):
             filepath = Path(filepath)
 
