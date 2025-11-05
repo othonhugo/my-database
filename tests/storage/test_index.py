@@ -1,6 +1,6 @@
 import pytest
 
-from mydb.storage.index import InMemoryIndex, InMemoryIndexKeyNotFoundError
+from mydb.index import InMemoryIndex, InMemoryIndexKeyNotFoundError
 
 EDGE_SCENARIOS = [
     # fmt: off
