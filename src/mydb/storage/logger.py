@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
+from os import SEEK_END
 from struct import Struct
 from typing import Self
-from os import SEEK_END
 
 from mydb.core import MyDBError
-from mydb.interface import Index, StorageEngine, File
 from mydb.index import InMemoryIndexKeyNotFoundError
+from mydb.interface import File, Index, StorageEngine
 
 
 class AppendOnlyLogOperation(IntEnum):
