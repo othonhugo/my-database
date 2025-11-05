@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from os import SEEK_SET
-from typing import Self
+from typing import Self, Literal
+
+OpenFileMode = Literal["rb", "ab", "r+b", "a+b", "wb", "w+b"]
 
 
 class File(ABC):
@@ -34,5 +36,5 @@ class File(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_: object) -> None:
         raise NotImplementedError
