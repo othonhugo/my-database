@@ -9,12 +9,15 @@ class MonolithicStorage(File):
         tablespace = tablespace.strip()
 
         if not tablespace:
-            raise ValueError("Tablespace cannot be empty.")
+            raise ValueError("Tablespace cannot be empty or whitespace only")
 
         directory = Path(directory).resolve()
 
+        if not directory.exists():
+            raise FileNotFoundError(f"Directory does not exist: {directory}")
+
         if not directory.is_dir():
-            raise ValueError("Directory does not exist")
+            raise NotADirectoryError(f"Path exists but is not a directory: {directory}")
 
         self._tablespace = tablespace
         self._directory = directory

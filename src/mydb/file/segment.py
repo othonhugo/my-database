@@ -1,11 +1,9 @@
 from os import SEEK_CUR, SEEK_END, SEEK_SET
 from pathlib import Path
 from re import compile
-from typing import BinaryIO, List, Literal, Optional, Self
+from typing import BinaryIO, List, Optional, Self
 
-from mydb.interface import File
-
-OpenSegmentMode = Literal["rb", "ab", "r+b", "a+b", "wb", "w+b"]
+from mydb.interface import File, OpenFileMode
 
 
 class Segment:
@@ -15,16 +13,24 @@ class Segment:
 
     def __init__(self, index: int, tablespace: str, directory: Path | str):
         if index < 0:
-            raise ValueError("Segment index must be non-negative.")
+            raise ValueError("Segment index must be non-negative")
 
         tablespace = tablespace.strip()
 
         if not tablespace:
-            raise ValueError("Tablespace cannot be empty.")
+            raise ValueError("Tablespace cannot be empty or whitespace only")
+
+        directory = Path(directory).resolve()
+
+        if not directory.exists():
+            raise FileNotFoundError(f"Directory does not exist: {directory}")
+
+        if not directory.is_dir():
+            raise NotADirectoryError(f"Path exists but is not a directory: {directory}")
 
         self.index = index
         self.tablespace = tablespace
-        self.directory = Path(directory).resolve()
+        self.directory = directory
 
     @property
     def path(self) -> Path:
@@ -48,7 +54,7 @@ class Segment:
             raise FileNotFoundError(f"Segment file not found: {filepath}")
 
         if not filepath.parent.samefile(directory):
-            raise ValueError(f"File '{filepath}' is not within the specified directory '{directory}'.")
+            raise ValueError(f"File {filepath!r} is not within the directory {directory!r}.")
 
         match = cls.FILENAME_PATTERN.match(filepath.name)
 
@@ -77,7 +83,7 @@ class Segment:
 class SegmentedStorage(File):
     """Manages a collection of Segment files, providing a continuous, file-like interface for a segmented log system."""
 
-    def __init__(self, tablespace: str, directory: Path | str, max_size: int, mode: OpenSegmentMode = "rb"):
+    def __init__(self, tablespace: str, directory: Path | str, max_size: int, mode: OpenFileMode = "rb"):
         if not tablespace:
             raise ValueError("Tablespace cannot be empty.")
 
@@ -91,7 +97,7 @@ class SegmentedStorage(File):
         self._directory = Path(directory)
         self._max_size = max_size
 
-        self._mode: OpenSegmentMode = mode
+        self._mode: OpenFileMode = mode
         self._file_handle: Optional[BinaryIO] = None
         self._segments: List[Segment] = []
 
@@ -373,5 +379,5 @@ class SegmentedStorage(File):
 
         return self
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_: object) -> None:
         self.close()
