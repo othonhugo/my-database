@@ -159,9 +159,11 @@ class SegmentedStorage(File):
         self._segments.clear()
         self._current_segment_index = -1
 
-    def _check_file_handle(self) -> None:
+    def _ensure_file_open(self) -> BinaryIO:
         if self._file_handle is None or self._file_handle.closed:
-            raise RuntimeError("SegmentedStorage is not opened.")
+            raise RuntimeError("MonolithicStorage is not opened.")
+
+        return self._file_handle
 
     def _rollover(self) -> None:
         if self._file_handle:
@@ -237,13 +239,10 @@ class SegmentedStorage(File):
         return None
 
     def write(self, data: bytes) -> int:
-        self._check_file_handle()
+        f = self._ensure_file_open()
 
         if "r" in self._mode and "w" not in self._mode and "a" not in self._mode:
             raise IOError(f"Cannot write in read-only mode: {self._mode}")
-
-        if self._file_handle is None:
-            raise IOError("File handle is not open for writing.")
 
         total_written = 0
         remaining = data
@@ -262,7 +261,7 @@ class SegmentedStorage(File):
                 continue
 
             temp_chunk = remaining[:space_left]
-            temp_written = self._file_handle.write(temp_chunk)
+            temp_written = f.write(temp_chunk)
 
             total_written += temp_written
             remaining = remaining[temp_written:]
@@ -273,13 +272,10 @@ class SegmentedStorage(File):
         return total_written
 
     def read(self, size: int = -1) -> bytes:
-        self._check_file_handle()
+        f = self._ensure_file_open()
 
         if "w" in self._mode and "r" not in self._mode and "a" not in self._mode:
             raise IOError(f"Cannot read in write-only mode: {self._mode}")
-
-        if self._file_handle is None:
-            raise IOError("File handle is not open for reading.")
 
         total_read = b""
         bytes_to_read = size
@@ -290,7 +286,7 @@ class SegmentedStorage(File):
             if current_segment is None:
                 break
 
-            bytes_left_in_segment = current_segment.size - self._file_handle.tell()
+            bytes_left_in_segment = current_segment.size - f.tell()
 
             if bytes_left_in_segment <= 0:
                 if self._current_segment_index + 1 < len(self._segments):
@@ -303,6 +299,7 @@ class SegmentedStorage(File):
                         break
 
                     self._file_handle = open(current_segment.path, self._mode)
+                    f = self._file_handle
 
                     continue
                 else:
@@ -313,7 +310,7 @@ class SegmentedStorage(File):
             if chunk_size <= 0:
                 break
 
-            chunk = self._file_handle.read(chunk_size)
+            chunk = f.read(chunk_size)
             total_read += chunk
 
             if bytes_to_read != -1:
@@ -325,7 +322,7 @@ class SegmentedStorage(File):
         return total_read
 
     def seek(self, offset: int, whence: int = SEEK_SET) -> int:
-        self._check_file_handle()
+        self._ensure_file_open()
 
         if whence == SEEK_SET:
             target_global_offset = offset
@@ -344,10 +341,7 @@ class SegmentedStorage(File):
         return self._set_position_from_global_offset(target_global_offset)
 
     def tell(self) -> int:
-        self._check_file_handle()
-
-        if self._file_handle is None:
-            raise IOError("File handle is not open for getting position.")
+        self._ensure_file_open()
 
         return self._get_global_offset_from_current_position()
 

@@ -1,5 +1,6 @@
 from os import SEEK_SET
 from pathlib import Path
+from typing import Self, BinaryIO
 
 from mydb.interface import File, OpenFileMode
 
@@ -21,11 +22,11 @@ class MonolithicStorage(File):
 
         self._tablespace = tablespace
         self._directory = directory
-        self._mode = mode
+        self._mode: OpenFileMode = mode
 
         self.path.touch(exist_ok=True)
 
-        self._file = open(self.path, self._mode)
+        self._file: BinaryIO | None = None
 
     @property
     def path(self) -> Path:
@@ -40,27 +41,47 @@ class MonolithicStorage(File):
         except FileNotFoundError:
             return 0
 
+    def _ensure_file_open(self) -> BinaryIO:
+        if self._file is None or self._file.closed:
+            raise RuntimeError("MonolithicStorage is not opened.")
+
+        return self._file
+
     @property
     def closed(self) -> bool:
+        if not self._file:
+            return True
+
         return self._file.closed
 
     def write(self, data: bytes) -> int:
-        return self._file.write(data)
+        f = self._ensure_file_open()
+
+        return f.write(data)
 
     def read(self, size: int = -1) -> bytes:
-        return self._file.read(size)
+        f = self._ensure_file_open()
+
+        return f.read(size)
 
     def seek(self, offset: int, whence: int = SEEK_SET) -> int:
-        return self._file.seek(offset, whence)
+        f = self._ensure_file_open()
+
+        return f.seek(offset, whence)
 
     def tell(self) -> int:
-        return self._file.tell()
+        f = self._ensure_file_open()
+
+        return f.tell()
 
     def close(self) -> None:
-        self._file.close()
+        f = self._ensure_file_open()
 
-    def __enter__(self) -> "MonolithicStorage":
-        self._file.__enter__()
+        f.close()
+
+    def __enter__(self) -> Self:
+        if self._file is None or self._file.closed:
+            self._file = open(self.path, self._mode)
 
         return self
 
